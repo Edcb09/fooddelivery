@@ -1,0 +1,207 @@
+慈善捐款系统设计与实现
+定位：B/S 慈善捐款平台，面向捐赠人、受助项目、管理员，核心功能：项目发布、在线捐款、捐款记录、资金公示、审核管理，保证资金流向透明，不涉及真实资金结算（模拟捐款）。
+一、需求分析
+1. 用户角色
+普通捐赠人：注册登录、浏览募捐项目、查看项目详情、提交捐款、查看个人捐款记录、下载捐赠凭证、查看资金公示。
+游客（未登录用户）：可浏览项目列表、搜索项目、查看项目详情和资金公示，但点击捐款、留言时会提示登录。
+项目申请人（受助方）：提交募捐项目申请，填写项目信息、证明材料，等待管理员审核；审核通过后展示项目；可提交资金使用进度报告。（注：此类角色没有捐助功能）
+系统管理员：用户管理、项目审核（通过 / 驳回 + 填写驳回理由）、捐款信息管理、资金公示发布、举报处理、系统后台维护。
+2. 功能需求
+（1）用户模块
+账号注册、登录、密码重置；密码重置分为忘记密码和修改密码，忘记密码需要用户主动联系管理员来实现后台修改密码，再让用户使用修改后的密码登录；修改密码则是用户登录之后主动修改。
+个人中心：修改资料、查看本人所有捐款记录、捐赠电子凭证；
+区分角色权限。
+（2）募捐项目模块
+1、申请人新建项目：项目标题、简介、募捐目标金额、截止时间、项目类型（助学 / 医疗 / 救灾等）、图片附件、受助人信息、证明材料；
+2、项目状态：草稿 → 待审核 → 募捐中 → 已结束（达标 / 到期）→ 已归档；（已结束：停止接受新的捐款，但项目主页依然可以展示，且项目申请人可以继续提交资金使用报告。已归档：项目已彻底结项，所有资金使用明细均已提交并通过管理员审核，页面变为只读状态，不再允许修改或提交新报告，作为历史数据存档。）
+3、管理员审核项目，驳回可附带原因；驳回后可重新修改提交，保留历史驳回理由。
+4、若到期且未募集到目标金额，考虑使用scheduled，每天凌晨扫描一次数据库。
+5、前端展示项目列表、详情页，可按类别 / 状态筛选。
+6、前端首页或项目列表页提供全局搜索框，支持通过项目标题（模糊匹配）或受助人信息进行搜索。支持多维度组合筛选：按项目类型（助学 / 医疗 / 救灾等）、项目状态（募捐中 / 已结束）进行过滤，帮助用户快速找到感兴趣的项目。
+
+（3）捐款模块（核心）
+选择项目，填写捐款金额，提交捐款订单；
+模拟支付（不接入真实支付），支付成功生成捐款记录；
+捐款记录：关联用户 + 项目，记录捐款时间、金额、订单号；
+支持匿名捐款选项（匿名时前端不展示捐赠人姓名）。
+（4）资金公示模块（重点）
+项目资金总筹集金额实时统计；
+项目资金使用报告上传，管理员审核后对外公示；
+公示页面：项目筹款总额、捐款明细（匿名则隐藏姓名）、资金支出记录。
+资金使用报告提交与归档：
+项目申请人在项目“已结束”后，可多次提交资金使用报告，管理员审核通过后对外公示。当项目申请人提交完所有的资金使用报告，且管理员审核确认项目资金已全部拨付/使用完毕，由管理员将项目状态手动置为“已归档”（或系统在申请人点击“申请结项”并审核通过后自动归档）。
+
+
+
+
+（5）其他辅助功能
+1、留言：项目留言评论
+① 功能描述：
+为登录用户提供在项目详情页发表评论、交流互动的能力，增强平台的社区属性和透明度。
+② 交互流程与规则：
+查看留言：所有访客（含游客）均可在项目详情页查看留言列表。留言按时间倒序排列（最新在前），支持分页加载。
+发布留言：仅限登录用户。用户需在留言框输入内容（限制 1-500 字），点击提交。如果游客点击留言框，前端应弹出提示“请先登录”。
+留言展示：留言列表需展示留言人的昵称（如果用户设置了头像则展示头像）、留言时间及内容。
+防刷与恶意留言：同一条留言不可重复提交（前端点击提交后置灰，后端可做短时间频率限制）。
+③ 管理端审核与删除：
+由于系统不引入复杂的自动敏感词过滤算法，留言内容由管理员在后台进行人工审核。
+管理员可在后台“留言管理”页面查看所有项目的留言。
+若发现违规内容，管理员可点击“删除”。系统采用逻辑删除（即更新 comment 表的 is_deleted 字段为 1），而不是物理删除，以保留操作痕迹。
+被逻辑删除的留言，前端将不再展示。
+
+2、举报：用户可举报违规项目
+① 功能描述：
+允许用户对涉嫌违规、诈骗、信息不实的募捐项目进行举报，协助平台维护安全环境。
+② 交互流程与规则：
+发起举报：仅限登录用户。用户在项目详情页点击“举报”按钮，弹出举报表单。
+填写举报理由：举报理由为必填项，建议提供快捷标签（如：涉嫌诈骗、信息虚假、涉及色情暴力、其他），并允许填写补充说明（限 200 字）。
+防重复举报：同一用户对同一个项目只能举报一次。前端在用户已举报后应将按钮置灰并提示“您已举报过该项目”；后端数据库需通过唯一索引 UNIQUE KEY uk_user_project (user_id, project_id) 进行最终拦截。
+③ 管理端处理流程：
+管理员后台拥有“举报管理”页面，可按状态筛选“待处理、已处理、已驳回”的举报记录。
+管理员查看举报理由并核实项目情况后，需填写处理结果说明（记录在 handle_result 字段），并记录处理的管理员ID（admin_id）。
+状态流转：举报记录初始状态为 0待处理。管理员处理完毕，状态变为 1已处理（属实）或 2已驳回（不属实）。
+反馈通知：管理员处理完举报后，系统应通过 message 消息通知表，给举报人发送一条消息，内容为“您对项目【XXX】的举报已处理，处理结果：XXX”。用户可在个人中心的消息通知模块查看。
+④ 约束：
+用户不能举报自己发起的项目（后端代码需做判断，如果 user_id == project.user_id，直接返回错误提示）。
+举报记录不可删除，仅管理员可查看全部记录。
+
+3、通知消息：项目审核结果、捐款成功通知；
+
+
+
+
+
+
+
+3. 非功能需求
+安全性：密码加密存储；权限隔离，普通用户不能修改项目 / 删除捐款记录；防止重复提交捐款。
+数据一致性：捐款成功后，项目已筹金额自动累加。
+透明性：所有公开捐款数据、资金使用记录可查询。
+易用性：前端页面简洁，项目图片正常预览。
+扩展性：后续可增加发票申请、消息推送。
+
+4. 业务约束
+1、项目达到募捐目标金额或到达截止时间，自动停止募捐；
+2、未审核项目不能对外展示、不能接受捐款；
+3、捐款记录不允许删除，仅管理员可查看全部记录。
+4、若项目结束后长时间未提交资金使用报告，管理员有权介入并锁定该项目的后续操作。
+
+
+
+
+
+
+
+
+
+
+
+
+
+二、数据库设计（核心表结构，MySQL）
+1. user 用户表
+user(
+  user_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL COMMENT '账号',
+  password VARCHAR(100) NOT NULL COMMENT '加密密码',
+  real_name VARCHAR(50),
+  phone VARCHAR(20),
+  role TINYINT COMMENT '0捐赠人 1项目申请人 2管理员',
+  create_time DATETIME,
+  status TINYINT COMMENT '0正常 1禁用'
+);
+
+2. project 募捐项目表
+project(
+  project_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL COMMENT '申请人ID',
+  title VARCHAR(100) NOT NULL,
+  description TEXT COMMENT '项目描述',
+  recipient_info TEXT COMMENT ‘受助人信息’,
+  proof_img VARCHAR(255) COMMENT ‘证明材料图片’,
+  target_amount DECIMAL(12,2) NOT NULL COMMENT '目标筹款金额',
+  current_amount DECIMAL(12,2) DEFAULT 0 COMMENT '已筹金额',
+  end_time DATETIME COMMENT '募捐截止时间',
+  project_type VARCHAR(30) COMMENT '助学/医疗/救灾',
+  status TINYINT COMMENT '0草稿 1待审核 2募捐中 3已结束 4驳回 5已归档',
+  reject_reason TEXT,
+  cover_img VARCHAR(255),
+  create_time DATETIME,
+  audit_time DATETIME,
+FOREIGN KEY(user_id) REFERENCES user(user_id)
+);
+
+3. donation 捐款记录表（核心）
+donation(
+  donation_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_no VARCHAR(64) UNIQUE COMMENT '捐款订单号',
+  user_id BIGINT NOT NULL COMMENT '捐赠人ID，匿名时仍保留后台记录，前端隐藏',
+  project_id BIGINT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL COMMENT '捐款金额',
+  is_anonymous TINYINT DEFAULT 0 COMMENT '0实名 1匿名',
+  pay_status TINYINT DEFAULT 0 COMMENT '0待支付 1已支付',
+  donate_time DATETIME,
+  remark VARCHAR(200),
+  FOREIGN KEY(user_id) REFERENCES user(user_id),
+  FOREIGN KEY(project_id) REFERENCES project(project_id)
+);
+
+
+
+
+
+4. fund_report 资金使用公示表
+fund_report(
+  report_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  project_id BIGINT NOT NULL,
+  content TEXT COMMENT '资金使用说明',
+  report_img VARCHAR(255),
+  report_amount DECIMAL(12,2) NOT NULL COMMENT '本次支出金额',
+  status TINYINT COMMENT '0待审核 1已公示 2驳回',
+  reject_reason TEXT COMMENT ‘驳回理由’,
+  create_time DATETIME,
+  audit_time DATETIME,
+  FOREIGN KEY(project_id) REFERENCES project(project_id)
+);
+
+5.comments 留言表
+comments(
+  comment_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  project_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  content TEXT NOT NULL,
+  create_time DATETIME,
+  is_deleted TINYINT DEFAULT 0 COMMENT ‘0正常 1已删除’,
+  FOREIGN KEY(project_id) REFERENCES project(project_id),
+  FOREIGN KEY(user_id) REFERENCES user(user_id)
+);
+
+
+6.report 举报表
+report(
+  report_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  project_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  reason VARCHAR(255) NOT NULL COMMENT '举报理由',
+  status TINYINT DEFAULT 0 COMMENT '0待处理 1已处理 2已驳回',
+  create_time DATETIME,
+handle_result VARCHAR(255) COMMENT '处理结果说明',
+admin_id BIGINT COMMENT '处理管理员ID',
+FOREIGN KEY(admin_id) REFERENCES user(user_id) ON DELETE SET NULL,
+  UNIQUE KEY uk_user_project (user_id, project_id), -- 防重复举报
+  FOREIGN KEY(project_id) REFERENCES project(project_id),
+  FOREIGN KEY(user_id) REFERENCES user(user_id)
+);
+
+7. message 消息通知表（可选）
+message(
+  msg_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  receive_user_id BIGINT NOT NULL,
+  content TEXT,
+  type TINYINT COMMENT ‘1项目审核结果 2捐款成功 3资金报告审核结果 4举报处理结果’,
+  link_id BIGINT COMMENT ‘关联的业务ID（如project_id或donation_id）’,
+  is_read TINYINT DEFAULT 0,
+  create_time DATETIME,
+  KEY idx_receive_read(receive_user_id,is_read),
+  FOREIGN KEY(receive_user_id) REFERENCES user(user_id)
+);
