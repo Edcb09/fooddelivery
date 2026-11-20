@@ -1,12 +1,13 @@
 package com.myx.fooddelivery.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.myx.fooddelivery.common.BusinessException;
 import com.myx.fooddelivery.common.UserContext;
+import com.myx.fooddelivery.common.exception.BusinessException;
 import com.myx.fooddelivery.dto.ShopCreateDTO;
 import com.myx.fooddelivery.entity.Shop;
 import com.myx.fooddelivery.enums.RoleEnum;
 import com.myx.fooddelivery.mapper.ShopMapper;
+import com.myx.fooddelivery.service.NotificationService;
 import com.myx.fooddelivery.service.ShopService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Service;
 public class ShopServiceImpl implements ShopService {
     @Autowired
     private ShopMapper shopMapper;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Override
     public void createShop(ShopCreateDTO createDTO){
@@ -90,9 +94,9 @@ public class ShopServiceImpl implements ShopService {
                 throw new BusinessException("拒绝审核时必须填写拒绝原因！");
             }
             shop.setAuditReason(rejectReason);
-            //“发消息”先用日志代替：记录已通知商家，后续可接入站内信/消息表
-            log.info("店铺[{}]审核被拒，原因：{}，已通知商家userId={}",
-                    shop.getShopName(), rejectReason, shop.getOwnerId());
+            //通过通知服务 abstraction 发送，当前为日志实现，后续可无缝替换为站内信
+            notificationService.notify(shop.getOwnerId(), "店铺审核未通过",
+                    "您申请的店铺【" + shop.getShopName() + "】未通过审核，原因：" + rejectReason);
         }
 
         shopMapper.updateById(shop);

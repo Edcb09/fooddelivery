@@ -21,6 +21,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     //BCrypt密码加密器
     private final PasswordEncoder passwordEncoder=new BCryptPasswordEncoder();
 
@@ -76,7 +79,7 @@ public class UserServiceImpl implements UserService {
         }
 
         //5、登陆成功，生成JWT Token
-        String token= JwtUtil.createToken(user.getId(), user.getRole());
+        String token= jwtUtil.createToken(user.getId(), user.getRole());
 
         //6、封装成VO返回给前端
         UserLoginVO vo=new UserLoginVO();

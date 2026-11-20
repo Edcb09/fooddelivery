@@ -36,4 +36,5 @@ public class Result <T>{
         return new Result<>(500,msg,null);
     }
 
+    public static <T> Result<T> error(Integer code,String msg){return new Result<>(code,msg,null);}
 }

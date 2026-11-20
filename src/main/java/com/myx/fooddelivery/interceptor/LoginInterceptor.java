@@ -6,12 +6,16 @@ import com.myx.fooddelivery.common.JwtUtil;
 import com.myx.fooddelivery.common.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,Object handler)throws Exception{
         //1、放行OPTIONS请求
@@ -30,7 +34,7 @@ public class LoginInterceptor implements HandlerInterceptor {
             if(token.startsWith("Bearer")){
                 token=token.substring(7);
             }
-            DecodedJWT jwt= JwtUtil.verifyToken(token);
+            DecodedJWT jwt= jwtUtil.verifyToken(token);
 
             //4、解析成功，把用户信息存入ThreadLocal
             Long userId=jwt.getClaim("userId").asLong();
