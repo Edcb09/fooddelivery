@@ -2,7 +2,10 @@ package com.myx.fooddelivery.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.myx.fooddelivery.common.UserContext;
+import com.myx.fooddelivery.common.enums.ErrorCode;
 import com.myx.fooddelivery.common.exception.BusinessException;
+import com.myx.fooddelivery.common.exception.ForbiddenException;
+import com.myx.fooddelivery.dto.ShopAuditDTO;
 import com.myx.fooddelivery.dto.ShopCreateDTO;
 import com.myx.fooddelivery.entity.Shop;
 import com.myx.fooddelivery.enums.RoleEnum;
@@ -59,26 +62,28 @@ public class ShopServiceImpl implements ShopService {
         log.info("商家{}成功申请开店：{}",userId,shop.getShopName());
     }
 
-    public void auditShop(Long shopId,Integer auditStatus,String rejectReason){
+    public void auditShop(ShopAuditDTO shopAuditDTO){
         //1、校验当前用户是不是管理员
         Long userId=UserContext.getUserId();
         Integer role=UserContext.getRole();
 
         if(!RoleEnum.ADMIN.getCode().equals(role)){
-            log.warn("用户{}尝试审核开店资质，其角色为：{}",userId,role);
-            throw new BusinessException("只有管理员才拥有审核权力！");
+            throw new ForbiddenException();
         }
 
+        Integer auditStatus=shopAuditDTO.getAuditStatus();
+        Long shopId=shopAuditDTO.getShopId();
+        String rejectReason=shopAuditDTO.getRejectReason();
         //2、校验审核状态参数 + 查询店铺
         if(auditStatus==null||(auditStatus!=1&&auditStatus!=2)){
-            throw new BusinessException("审核状态只能是 1通过 或 2拒绝！");
+            throw new BusinessException(ErrorCode.PARAM_ERROR,"审核出错。");
         }
         Shop shop=shopMapper.selectById(shopId);
         if(shop==null){
-            throw new BusinessException("店铺不存在！");
+            throw new BusinessException(ErrorCode.SHOP_NOT_FOUND);
         }
         if(shop.getAuditStatus()!=0){
-            throw new BusinessException("该店铺已审核，请勿重复审核！");
+            throw new BusinessException(ErrorCode.PARAM_ERROR,"该店铺已审核，请勿重复审核！");
         }
 
         //3、将店铺的auditStatus改为1（通过）或2（拒绝）
@@ -94,6 +99,7 @@ public class ShopServiceImpl implements ShopService {
                 throw new BusinessException("拒绝审核时必须填写拒绝原因！");
             }
             shop.setAuditReason(rejectReason);
+            shop.setStatus(2);
             //通过通知服务 abstraction 发送，当前为日志实现，后续可无缝替换为站内信
             notificationService.notify(shop.getOwnerId(), "店铺审核未通过",
                     "您申请的店铺【" + shop.getShopName() + "】未通过审核，原因：" + rejectReason);

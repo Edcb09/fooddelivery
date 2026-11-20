@@ -4,11 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.myx.fooddelivery.common.JwtUtil;
+import com.myx.fooddelivery.common.enums.ErrorCode;
+import com.myx.fooddelivery.common.exception.BusinessException;
 import com.myx.fooddelivery.dto.UserLoginDTO;
 import com.myx.fooddelivery.dto.UserRegisterDTO;
 import com.myx.fooddelivery.entity.User;
 import com.myx.fooddelivery.mapper.UserMapper;
 import com.myx.fooddelivery.service.UserService;
+import com.myx.fooddelivery.vo.UserInfoVO;
 import com.myx.fooddelivery.vo.UserLoginVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +36,7 @@ public class UserServiceImpl implements UserService {
         LambdaQueryWrapper<User> wrapper=new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername,registerDTO.getUsername());
         if(userMapper.selectCount(wrapper)>0){
-            throw new RuntimeException("用户名已存在！");
+            throw new BusinessException(ErrorCode.USER_EXISTS,"该用户名已被注册，请换一个！");
         }
 
         //2、DTO转换为Entity
@@ -65,17 +68,17 @@ public class UserServiceImpl implements UserService {
 
         //2、校验：用户是否存在
         if(user==null){
-            throw new RuntimeException("账号或密码错误");
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND,"账号或密码错误");
         }
 
-        //3、校验：用户是否存在
+        //3、校验：账号状态
         if(user.getStatus()==0){
-            throw new RuntimeException("该账号已被封禁，请联系管理员");
+            throw new BusinessException(ErrorCode.FORBIDDEN,"该账号已被封禁，请联系管理员");
         }
 
         //4、校验：密码是否正确（BCrypt里的matches方法用来比较明文和密文）
         if(!passwordEncoder.matches(loginDTO.getPassword(),user.getPassword())){
-            throw new RuntimeException("账号或密码错误");
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND,"账号或密码错误");
         }
 
         //5、登陆成功，生成JWT Token
@@ -89,5 +92,16 @@ public class UserServiceImpl implements UserService {
         vo.setRole(user.getRole());
 
         return vo;
+    }
+
+    @Override
+    public UserInfoVO getUserInfo(Long userId){
+        User user=userMapper.selectById(userId);
+        if(user==null){
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        UserInfoVO userInfoVO=new UserInfoVO();
+        BeanUtils.copyProperties(user,userInfoVO);
+        return userInfoVO;
     }
 }

@@ -14,8 +14,9 @@ public enum ErrorCode {
     FORBIDDEN(2002,"无权限访问"),
     //业务错误
     USER_EXISTS(3001,"用户名已存在"),
-    STOCK_INSUFFICIENT(3002,"库存不足"),
-    SHOP_NOT_FOUND(3003,"店铺不存在"),
+    USER_NOT_FOUND(3002,"用户不存在"),
+    STOCK_INSUFFICIENT(3004,"库存不足"),
+    SHOP_NOT_FOUND(3005,"店铺不存在"),
     //系统错误
     SYSTEM_ERROR(9999,"系统内部错误");
 

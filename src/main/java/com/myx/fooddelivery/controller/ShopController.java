@@ -1,6 +1,7 @@
 package com.myx.fooddelivery.controller;
 
 import com.myx.fooddelivery.common.Result;
+import com.myx.fooddelivery.dto.ShopAuditDTO;
 import com.myx.fooddelivery.dto.ShopCreateDTO;
 import com.myx.fooddelivery.service.ShopService;
 import lombok.extern.slf4j.Slf4j;
@@ -21,4 +22,12 @@ public class ShopController {
         shopService.createShop(createDTO);
         return Result.success();
     }
+
+    @PostMapping("/audit")
+    public Result<Void> auditShop(@RequestBody @Validated ShopAuditDTO auditDTO){
+        shopService.auditShop(auditDTO);
+        return Result.success();
+    }
+
+
 }
